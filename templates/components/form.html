@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{% if component %}Modifier{% else %}Nouvel article{% endif %}</h1>
+        <p class="muted">La quantité saisie ici devient le stock actuel. Toute différence est journalisée dans les mouvements.</p>
+    </div>
+</div>
+
+{% if ai_lookup_notice %}
+<div class="card {% if ai_lookup_notice.tone == 'danger' %}error-card{% endif %}">
+    <strong>Aide IA de fiche</strong>
+    <p class="small">{{ ai_lookup_notice.message }}</p>
+</div>
+{% endif %}
+
+<form class="card" method="post" action="{{ action_url }}" enctype="multipart/form-data" id="component-form">
+    <div class="grid grid-3">
+        <div>
+            {% if item_field_visible(item_profile, 'part_number') %}
+            <label>{{ item_field_label(item_profile, 'part_number') }}</label>
+            <div class="field-with-action">
+                <input type="text" name="part_number" value="{{ component.part_number if component else '' }}" required>
+                <button class="btn btn-secondary btn-inline" type="submit" id="ai-lookup-trigger" name="form_action" value="ai_lookup" formnovalidate {% if not ai_component_lookup_enabled %}disabled aria-disabled="true"{% endif %}>Aide IA</button>
+            </div>
+            {% if ai_component_lookup_enabled %}
+            <p class="muted small">L'IA peut utiliser le web si besoin pour proposer un pré-remplissage. Pense à  vérifier les données avant d'enregistrer.</p>
+            <div class="ai-lookup-status" id="ai-lookup-status" aria-live="polite" hidden></div>
+            {% else %}
+            <p class="muted small">Pour utiliser la recherche IA, ajoute une cle API OpenAI dans la page <a href="/settings">Parametres</a>.</p>
+            {% endif %}
+            {% else %}
+            <input type="hidden" name="part_number" value="{{ component.part_number if component else '' }}">
+            {% endif %}
+        </div>
+        <div class="grid-span-2">
+            <label>Désignation</label>
+            <input type="text" name="name" value="{{ component.name if component else '' }}" required>
+        </div>
+        {% if requires_workshop_choice %}
+        <div>
+            <label>Atelier</label>
+            <select name="workshop_id" required>
+                <option value="">Choisir...</option>
+                {% for workshop in workshops %}
+                <option value="{{ workshop.id }}" {% if component and component.workshop_id == workshop.id %}selected{% endif %}>{{ workshop.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="workshop_id" value="{{ active_workshop_id }}">
+        {% endif %}
+
+        <div class="grid-span-2">
+            <label>Catégorie</label>
+            <div
+                class="category-cascade"
+                data-hidden-input-name="category_id"
+                data-selected-leaf-id="{{ component.category_id if component else '' }}"
+                data-children='{{ category_children_map | tojson | safe }}'
+                data-level-labels='{{ category_level_labels | tojson | safe }}'>
+            </div>
+        </div>
+        {% if item_field_visible(item_profile, 'manufacturer') %}
+        <div>
+            <label>{{ item_field_label(item_profile, 'manufacturer') }}</label>
+            <select name="manufacturer_id">
+                <option value="">—</option>
+                {% for item in manufacturers %}
+                <option value="{{ item.id }}" {% if component and component.manufacturer_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        {% if item_field_visible(item_profile, 'package') %}
+        <div>
+            <label>{{ item_field_label(item_profile, 'package') }}</label>
+            <select name="package_id">
+                <option value="">—</option>
+                {% for item in packages %}
+                <option value="{{ item.id }}" {% if component and component.package_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div>
+            <label>Emplacement</label>
+            <select name="location_id">
+                <option value="">—</option>
+                {% for item in locations %}
+                <option value="{{ item.id }}" {% if component and component.location_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Quantité actuelle</label>
+            <input type="number" name="quantity" value="{{ component.quantity if component else 0 }}">
+        </div>
+
+        {% if item_field_visible(item_profile, 'minimum_quantity') %}
+        <div>
+            <label>{{ item_field_label(item_profile, 'minimum_quantity') }}</label>
+            <input type="number" name="minimum_quantity" value="{{ component.minimum_quantity if component else 0 }}">
+        </div>
+        {% endif %}
+        {% if item_field_visible(item_profile, 'datasheet_url') %}
+        <div class="grid-span-2">
+            <label>{{ item_field_label(item_profile, 'datasheet_url') }}</label>
+            <input type="url" name="datasheet_url" value="{{ component.datasheet_url if component and component.datasheet_url else '' }}">
+        </div>
+        {% endif %}
+        {% if item_field_visible(item_profile, 'keywords') %}
+        <div class="grid-span-2">
+            <label>{{ item_field_label(item_profile, 'keywords') }}</label>
+            <input type="text" name="keywords" value="{{ component.keywords if component and component.keywords else '' }}">
+        </div>
+        {% endif %}
+        {% if item_field_visible(item_profile, 'description') %}
+        <div class="grid-span-2">
+            <label>{{ item_field_label(item_profile, 'description') }}</label>
+            <textarea name="description" rows="7">{{ component.description if component and component.description else '' }}</textarea>
+        </div>
+        {% endif %}
+        {% if item_field_visible(item_profile, 'notes') %}
+        <div class="grid-span-2">
+            <label>{{ item_field_label(item_profile, 'notes') }}</label>
+            <textarea name="notes" rows="4">{{ component.notes if component and component.notes else '' }}</textarea>
+        </div>
+        {% endif %}
+        <div class="grid-span-2">
+            <label>Image</label>
+            <input type="file" name="image" accept="image/*">
+            {% if component and component.thumbnail_path %}
+            <div class="inline-checkbox"><label><input type="checkbox" name="replace_image" value="true"> Supprimer l'image actuelle si aucune nouvelle n'est envoyée</label></div>
+            <img class="thumb large-thumb" src="/data/{{ component.thumbnail_path }}" alt="{{ component.name }}">
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="subsection">
+        <h2>Champs personnalisés</h2>
+        <div class="grid grid-3">
+            {% for field in custom_fields %}
+            <div>
+                <label>{{ field.name }}{% if field.unit %} ({{ field.unit }}){% endif %}</label>
+                <input type="text" name="custom_{{ field.id }}" value="{{ custom_values.get(field.id, '') }}">
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="actions">
+        <button class="btn" type="submit">Enregistrer</button>
+        <a class="btn btn-secondary" href="/components">Annuler</a>
+    </div>
+</form>
+{% if ai_component_lookup_enabled %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('component-form');
+    const trigger = document.getElementById('ai-lookup-trigger');
+    const statusBox = document.getElementById('ai-lookup-status');
+    if (!form || !trigger || !statusBox) return;
+
+    const showStatus = (message, tone = 'info') => {
+        statusBox.hidden = false;
+        statusBox.className = `ai-lookup-status ai-lookup-${tone}`;
+        statusBox.innerHTML = message;
+        statusBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    const escapeHtml = (value) => String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+
+    const setFieldValue = (name, value) => {
+        const field = form.elements.namedItem(name);
+        if (!field) return;
+        field.value = value ?? '';
+        field.classList.add('ai-filled');
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const setSelectValue = (name, value) => {
+        const field = form.elements.namedItem(name);
+        if (!field) return;
+        field.value = value ? String(value) : '';
+        field.classList.add('ai-filled');
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const setCustomFieldValue = (fieldId, value) => {
+        const field = form.elements.namedItem(`custom_${fieldId}`);
+        if (!field) return;
+        field.value = value ?? '';
+        field.classList.add('ai-filled');
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    trigger.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const partNumber = String(form.elements.namedItem('part_number')?.value || '').trim();
+        if (!partNumber) {
+            showStatus('Saisis d\\'abord une reference avant de lancer l\\'aide IA.', 'warning');
+            return;
+        }
+
+        trigger.disabled = true;
+        trigger.dataset.originalLabel = trigger.dataset.originalLabel || trigger.textContent;
+        trigger.textContent = 'Recherche en cours...';
+        form.querySelectorAll('.ai-filled').forEach((field) => field.classList.remove('ai-filled'));
+        showStatus('Recherche en cours: analyse de la reference et recuperation des informations utiles.', 'loading');
+
+        try {
+            const payload = new FormData();
+            payload.append('part_number', partNumber);
+
+            const response = await fetch('/components/ai-lookup', {
+                method: 'POST',
+                body: payload,
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.detail || 'La recherche IA a echoue.');
+            }
+
+            const component = data.component || {};
+            let filledCount = 0;
+            const applyValue = (callback, value) => {
+                if (value === null || value === undefined || value === '') return;
+                callback(value);
+                filledCount += 1;
+            };
+            applyValue((value) => setFieldValue('part_number', value), component.part_number || partNumber);
+            applyValue((value) => setFieldValue('name', value), component.name || '');
+            applyValue((value) => setFieldValue('minimum_quantity', value), component.minimum_quantity ?? '');
+            applyValue((value) => setFieldValue('datasheet_url', value), component.datasheet_url || '');
+            applyValue((value) => setFieldValue('keywords', value), component.keywords || '');
+            applyValue((value) => setFieldValue('description', value), component.description || '');
+            applyValue((value) => setFieldValue('notes', value), component.notes || '');
+            applyValue((value) => setSelectValue('manufacturer_id', value), component.manufacturer_id || '');
+            applyValue((value) => setSelectValue('package_id', value), component.package_id || '');
+            applyValue((value) => setSelectValue('location_id', value), component.location_id || '');
+
+            const categoryContainer = form.querySelector('.category-cascade');
+            if (categoryContainer && window.setCategoryCascadeValue && component.category_id) {
+                window.setCategoryCascadeValue(categoryContainer, component.category_id || '');
+                filledCount += 1;
+            }
+
+            (component.custom_fields || []).forEach((item) => {
+                setCustomFieldValue(item.id, item.value);
+                filledCount += 1;
+            });
+
+            const meta = data.meta || {};
+            const createdPackages = Array.isArray(meta.created_packages) ? meta.created_packages : [];
+            const warnings = Array.isArray(meta.warnings) ? meta.warnings : [];
+            const sources = Array.isArray(meta.sources) ? meta.sources : [];
+            const unmatched = meta.unmatched || {};
+            const unmatchedLines = [];
+            if (unmatched.category) unmatchedLines.push(`Categorie non trouvee localement: <strong>${escapeHtml(unmatched.category)}</strong>`);
+            if (unmatched.manufacturer) unmatchedLines.push(`Marque / fabricant non trouve localement: <strong>${escapeHtml(unmatched.manufacturer)}</strong>`);
+            if (unmatched.package) unmatchedLines.push(`Format / conditionnement non trouve localement: <strong>${escapeHtml(unmatched.package)}</strong>`);
+            if (unmatched.location) unmatchedLines.push(`Emplacement non trouve localement: <strong>${escapeHtml(unmatched.location)}</strong>`);
+            if (Array.isArray(unmatched.custom_fields) && unmatched.custom_fields.length) {
+                unmatchedLines.push(`Champs personnalises non mappes: <strong>${escapeHtml(unmatched.custom_fields.join(', '))}</strong>`);
+            }
+
+            const messages = [
+                `Pre-remplissage IA termine. <strong>${filledCount}</strong> champ(s) ont ete renseignes. Niveau de confiance estime: <strong>${escapeHtml(meta.confidence || 'medium')}</strong>.`,
+            ];
+            if (createdPackages.length) {
+                messages.push(`Format / conditionnement ajoute automatiquement: ${createdPackages.map((item) => escapeHtml(item)).join(', ')}`);
+            }
+            if (warnings.length) {
+                messages.push(`Points a verifier: ${warnings.map((item) => escapeHtml(item)).join(' | ')}`);
+            }
+            if (unmatchedLines.length) {
+                messages.push(unmatchedLines.join(' | '));
+            }
+            if (sources.length) {
+                messages.push(`Sources: ${sources.map((item) => `<a href="${escapeHtml(item)}" target="_blank" rel="noreferrer">${escapeHtml(item)}</a>`).join(' | ')}`);
+            }
+
+            showStatus(messages.join('<br>'), unmatchedLines.length ? 'warning' : 'success');
+        } catch (error) {
+            showStatus(escapeHtml(error.message || 'La recherche IA a echoue.'), 'danger');
+        } finally {
+            trigger.disabled = false;
+            trigger.textContent = trigger.dataset.originalLabel || 'Aide IA';
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

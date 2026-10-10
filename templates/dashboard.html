@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ dashboard_scope_title }}</h1>
+        <p class="muted">{% if dashboard_scope_is_all %}Vue globale du stock par atelier.{% else %}Vue rapide du stock de cet atelier.{% endif %}</p>
+    </div>
+    {% if can_manage_stock %}
+    <div class="actions-inline">
+        <a class="btn btn-secondary" href="/imports/components">Importer</a>
+        <a class="btn" href="/components/new">+ Nouvel article</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if dashboard_scope_is_all and workshop_summaries %}
+<section class="workshop-overview">
+    {% for item in workshop_summaries %}
+    <article class="card workshop-card">
+        <div>
+            <h2>{{ item.workshop.name }}</h2>
+            <p class="muted small">{{ item.workshop.description or 'Atelier actif' }}</p>
+        </div>
+        <div class="workshop-card-stats">
+            <span><strong>{{ item.component_count }}</strong> articles</span>
+            <span>{{ item.category_count }} categories</span>
+            <span>{{ item.location_count }} emplacements</span>
+            <span>{{ item.low_stock_count }} stock faible</span>
+        </div>
+        <form method="post" action="/workshops/select">
+            <input type="hidden" name="workshop_id" value="{{ item.workshop.id }}">
+            <button class="btn btn-secondary btn-small" type="submit">Ouvrir</button>
+        </form>
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+
+<div class="stats-grid five">
+    <a class="card stat-card stat-link" href="/components">
+        <span class="stat-label">Références</span>
+        <strong>{{ total_components }}</strong>
+        <span class="stat-hint">Ouvrir la liste complète</span>
+    </a>
+    <a class="card stat-card stat-link" href="/components">
+        <span class="stat-label">Quantité totale</span>
+        <strong>{{ total_stock }}</strong>
+        <span class="stat-hint">Voir tout le stock</span>
+    </a>
+    <a class="card stat-card stat-link" href="/components?stock_status=low">
+        <span class="stat-label">Stock faible</span>
+        <strong>{{ low_stock }}</strong>
+        <span class="stat-hint">Liste filtrée + export CSV</span>
+    </a>
+    <a class="card stat-card stat-link" href="/categories">
+        <span class="stat-label">Catégories</span>
+        <strong>{{ categories_count }}</strong>
+        <span class="stat-hint">Gérer l’arborescence</span>
+    </a>
+    <a class="card stat-card stat-link" href="/components">
+        <span class="stat-label">Mouvements 7 jours</span>
+        <strong>{{ movements_7d }}</strong>
+        <span class="stat-hint">Voir les articles et leurs stocks</span>
+    </a>
+</div>
+
+<div class="two-columns">
+    <section class="card">
+        <div class="section-head">
+            <h2>Dernières modifications</h2>
+            <a class="btn btn-secondary" href="/components/export.csv">CSV</a>
+        </div>
+        {% if latest_components %}
+        <table class="table compact">
+            <thead>
+                <tr><th>Référence</th><th>Désignation</th><th>Famille</th><th>Stock</th></tr>
+            </thead>
+            <tbody>
+                {% for component in latest_components %}
+                <tr>
+                    <td><a href="/components/{{ component.id }}">{{ component.part_number }}</a></td>
+                    <td>{{ component.name }}</td>
+                    <td>{{ build_category_path(component.category) or '—' }}</td>
+                    <td>{{ component.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Aucun article pour le moment.</p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <div class="section-head">
+            <h2>Répartition par catégorie</h2>
+            <a class="btn btn-secondary" href="/categories">Ouvrir</a>
+        </div>
+        {% if stock_by_category %}
+        <table class="table compact">
+            <thead>
+                <tr><th>Catégorie</th><th>Nb articles</th></tr>
+            </thead>
+            <tbody>
+                {% for row in stock_by_category %}
+                <tr>
+                    <td><a href="/components?category_id={{ row[0] }}">{{ row[1] }}</a></td>
+                    <td>{{ row[2] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Aucune donnée.</p>
+        {% endif %}
+    </section>
+</div>
+
+<section class="card">
+    <div class="section-head">
+        <h2>Derniers mouvements</h2>
+        <a class="btn btn-secondary" href="/components">Ouvrir les fiches</a>
+    </div>
+    {% if recent_movements %}
+    <table class="table compact">
+        <thead>
+            <tr><th>Date</th><th>Référence</th><th>Type</th><th>Delta</th><th>Stock après</th><th>Raison</th></tr>
+        </thead>
+        <tbody>
+            {% for movement in recent_movements %}
+            <tr>
+                <td>{{ movement.created_at.strftime('%Y-%m-%d %H:%M') if movement.created_at else '—' }}</td>
+                <td><a href="/components/{{ movement.component.id }}">{{ movement.component.part_number }}</a></td>
+                <td><span class="badge badge-{{ movement.movement_type }}">{{ movement.movement_type }}</span></td>
+                <td>{{ movement.quantity_delta }}</td>
+                <td>{{ movement.resulting_quantity }}</td>
+                <td>{{ movement.reason or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Aucun mouvement pour le moment.</p>
+    {% endif %}
+</section>
+{% endblock %}

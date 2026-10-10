@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+  <div><h1>Articles</h1><p class="muted">{{ total }} resultat(s).</p></div>
+  <div class="actions-inline">
+    <button class="btn btn-secondary" type="button" id="open-label-modal-button">Imprimer etiquettes</button>
+    <button class="btn btn-secondary" type="button" id="clear-selection-button">Effacer selection</button>
+    <a class="btn btn-secondary" href="/components/export.csv{% if export_query_string %}?{{ export_query_string }}{% endif %}">Exporter CSV</a>
+    {% if can_manage_stock %}
+    <a class="btn btn-secondary" href="/imports/components">Importer CSV / Excel</a>
+    <a class="btn" href="/components/new">+ Ajouter</a>
+    {% endif %}
+  </div>
+</div>
+
+<form class="card filter-form" method="get" action="/components" id="component-search-form">
+  <div class="grid grid-4">
+    <div>
+      <label for="search-input">Recherche</label>
+      <input type="text" id="search-input" name="search" value="{{ filters.search }}" placeholder="Reference, C:123, nom, mots-cles...">
+      <div class="actions-inline" style="margin-top:.25rem;"><button class="btn btn-secondary" type="button" id="open-scanner-button">Scanner</button><button class="btn btn-secondary" type="button" id="clear-search-button">Effacer</button></div>
+      <p class="muted small" style="margin-top:.6rem;">Scan possible : <strong>C:123</strong>, <strong>L:12</strong>, <strong>COMPONENT_ID:123</strong> ou une reference exacte.</p>
+    </div>
+    <div class="grid-span-2"><label>Categorie</label><div class="category-cascade" data-hidden-input-name="category_id" data-selected-leaf-id="{{ filters.category_id or '' }}" data-children='{{ category_children_map | tojson | safe }}' data-level-labels='{{ category_level_labels | tojson | safe }}'></div></div>
+    <div><label>{{ item_field_label(item_profile, 'manufacturer') }}</label><select name="manufacturer_id"><option value="">Tous</option>{% for item in manufacturers %}<option value="{{ item.id }}" {% if filters.manufacturer_id == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
+    <div><label>{{ item_field_label(item_profile, 'package') }}</label><select name="package_id"><option value="">Tous</option>{% for item in packages %}<option value="{{ item.id }}" {% if filters.package_id == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
+    <div><label>Emplacement</label><select name="location_id"><option value="">Tous</option>{% for item in locations %}<option value="{{ item.id }}" {% if filters.location_id == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
+    <div><label>Etat stock</label><select name="stock_status"><option value="">Tous</option><option value="available" {% if filters.stock_status == 'available' %}selected{% endif %}>Disponible</option><option value="low" {% if filters.stock_status == 'low' %}selected{% endif %}>Faible</option><option value="empty" {% if filters.stock_status == 'empty' %}selected{% endif %}>Vide</option></select></div>
+    <div><label>Qte min</label><input type="number" name="qty_min" value="{{ filters.qty_min }}"></div>
+    <div><label>Qte max</label><input type="number" name="qty_max" value="{{ filters.qty_max }}"></div>
+  </div>
+  <div class="actions"><button class="btn" type="submit">Filtrer</button><a class="btn btn-secondary" href="/components">Reinitialiser</a></div>
+</form>
+
+<div class="card selection-toolbar"><div><strong id="selection-count">0 article selectionne</strong><div class="muted small">La selection reste disponible pendant la navigation.</div></div><div class="actions-inline"><button class="btn btn-secondary" type="button" id="select-page-button">Selectionner la page</button><button class="btn" type="button" id="open-label-modal-toolbar-button">Imprimer etiquettes selectionnees</button></div></div>
+
+<div class="card" id="scanner-panel" hidden><div class="section-head"><h2>Scanner</h2><button class="btn btn-secondary" type="button" id="close-scanner-button">Fermer</button></div><p class="muted">Autorise l'acces camera, vise le QR code, et la recherche partira automatiquement.</p><div id="scanner-reader" style="width:100%;max-width:420px;margin:0 auto;"></div><div id="scanner-status" class="muted small" style="margin-top:.75rem;text-align:center;">En attente de demarrage...</div></div>
+
+<div class="card">{% if components %}<div class="table-scroll"><table class="table"><thead><tr><th><input type="checkbox" id="select-all-page-checkbox"></th><th>Image</th><th>{{ item_field_label(item_profile, 'part_number') }}</th><th>Designation</th><th>Famille</th><th>{{ item_field_label(item_profile, 'manufacturer') }}</th><th>{{ item_field_label(item_profile, 'package') }}</th><th>Qte</th><th>{{ item_field_label(item_profile, 'minimum_quantity') }}</th><th>Emplacement</th></tr></thead><tbody>{% for component in components %}<tr><td><input type="checkbox" data-component-select value="{{ component.id }}"></td><td>{% if component.thumbnail_path %}<img class="thumb" src="/data/{{ component.thumbnail_path }}" alt="{{ component.name }}">{% else %}<div class="thumb thumb-empty">-</div>{% endif %}</td><td><a href="/components/{{ component.id }}">{{ component.part_number }}</a></td><td>{{ component.name }}</td><td>{{ build_category_path(component.category) or '-' }}</td><td>{{ component.manufacturer.name if component.manufacturer else '-' }}</td><td>{{ component.package.name if component.package else '-' }}</td><td><strong>{{ component.quantity }}</strong></td><td>{{ component.minimum_quantity }}</td><td>{% if component.location %}<a href="/locations/{{ component.location.id }}">{{ component.location.name }}</a>{% else %}-{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="empty-block"><p class="empty">Aucun article trouve.</p><a class="btn btn-secondary" href="/components">Effacer les filtres</a></div>{% endif %}</div>
+
+<div class="pagination">{% if page > 1 %}<a class="btn btn-secondary" href="?page={{ page - 1 }}&{{ export_query_string }}">Precedent</a>{% endif %}<span>Page {{ page }} / {{ pages }}</span>{% if page < pages %}<a class="btn btn-secondary" href="?page={{ page + 1 }}&{{ export_query_string }}">Suivant</a>{% endif %}</div>
+
+<div class="modal-shell" id="component-label-modal" hidden>
+  <div class="modal-backdrop" data-close-label-modal></div>
+  <div class="modal-card modal-card-large" role="dialog" aria-modal="true" aria-labelledby="component-label-modal-title">
+    <div class="section-head"><div><h2 id="component-label-modal-title">Generation de planche d'etiquettes</h2><p class="muted small">Configuration PDF complete avant export.</p></div><button class="btn btn-secondary" type="button" data-close-label-modal>Fermer</button></div>
+    <div id="label-modal-feedback"></div>
+    <section class="card nested-card modal-primary-card">
+      <h3>Preset global</h3>
+      <label>Preset<select id="global-preset-select"></select></label>
+      <label>Nom<input type="text" id="global-preset-name" placeholder="Ex: Atelier A4 QR"></label>
+      <div class="actions-inline"><button class="btn btn-secondary" type="button" id="load-global-preset-button">Charger</button><button class="btn btn-secondary" type="button" id="duplicate-global-preset-button">Dupliquer</button><button class="btn" type="button" id="save-global-preset-button">Sauver / maj</button><button class="btn btn-danger" type="button" id="delete-global-preset-button">Supprimer</button></div>
+    </section>
+    <div class="modal-accordion">
+      <details class="card nested-card modal-section">
+        <summary>Source des articles</summary>
+        <div class="modal-section-body"><label class="choice-row"><input type="radio" name="label_source" value="selected"> Selection <span class="muted small" id="source-selected-count"></span></label><label class="choice-row"><input type="radio" name="label_source" value="current_page"> Page actuelle <span class="muted small" id="source-current-page-count"></span></label><label class="choice-row"><input type="radio" name="label_source" value="filtered"> Resultat filtre <span class="muted small" id="source-filtered-count"></span></label><label class="inline-checkbox"><input type="checkbox" id="sample-page-checkbox"> Tester avec 1 page</label></div>
+      </details>
+      <details class="card nested-card modal-section">
+        <summary>Format de page</summary>
+        <div class="modal-section-body"><label>Preset format<select id="page-format-select"></select></label><label>Nom<input type="text" id="page-format-name" placeholder="Ex: Planche boutique"></label><div class="grid grid-2"><label>Largeur (mm)<input type="number" min="20" step="0.1" id="page-width-input"></label><label>Hauteur (mm)<input type="number" min="20" step="0.1" id="page-height-input"></label></div><div class="actions-inline"><button class="btn btn-secondary" type="button" id="load-page-format-button">Charger</button><button class="btn" type="button" id="save-page-format-button">Sauver / maj</button><button class="btn btn-danger" type="button" id="delete-page-format-button">Supprimer</button></div></div>
+      </details>
+      <details class="card nested-card modal-section">
+        <summary>Etiquettes, marges et espacements</summary>
+        <div class="modal-section-body"><div class="grid grid-2"><label>Largeur etiquette<input type="number" min="5" step="0.1" id="label-width-input"></label><label>Hauteur etiquette<input type="number" min="5" step="0.1" id="label-height-input"></label><label>Marge haut<input type="number" min="0" step="0.1" id="margin-top-input"></label><label>Marge bas<input type="number" min="0" step="0.1" id="margin-bottom-input"></label><label>Marge gauche<input type="number" min="0" step="0.1" id="margin-left-input"></label><label>Marge droite<input type="number" min="0" step="0.1" id="margin-right-input"></label><label>Espacement horizontal<input type="number" min="0" step="0.1" id="gap-horizontal-input"></label><label>Espacement vertical<input type="number" min="0" step="0.1" id="gap-vertical-input"></label></div><label>Preset layout<select id="layout-preset-select"></select></label><label>Nom<input type="text" id="layout-preset-name" placeholder="Ex: Avery atelier"></label><div class="actions-inline"><button class="btn btn-secondary" type="button" id="load-layout-preset-button">Charger</button><button class="btn" type="button" id="save-layout-preset-button">Sauver / maj</button><button class="btn btn-danger" type="button" id="delete-layout-preset-button">Supprimer</button></div></div>
+      </details>
+      <details class="card nested-card modal-section">
+        <summary>Contenu texte</summary>
+        <div class="modal-section-body"><div class="check-grid" id="text-fields-grid"></div></div>
+      </details>
+      <details class="card nested-card modal-section">
+        <summary>QR code</summary>
+        <div class="modal-section-body"><label class="inline-checkbox"><input type="checkbox" id="qr-enabled-checkbox"> Activer le QR code</label><label>Niveau<select id="qr-error-correction-select"><option value="L">L</option><option value="M">M</option><option value="Q">Q</option><option value="H">H</option></select></label><div class="check-grid" id="qr-fields-grid"></div></div>
+      </details>
+      <details class="card nested-card modal-section">
+        <summary>Apercu calcule</summary>
+        <div class="modal-section-body"><div class="summary-grid" id="layout-summary-grid"></div><p class="muted small" id="layout-summary-error" hidden></p></div>
+      </details>
+      <details class="card nested-card modal-section">
+        <summary>Apercu layout</summary>
+        <div class="modal-section-body"><div class="layout-preview" id="layout-preview"></div></div>
+      </details>
+    </div>
+    <div class="actions-inline modal-actions-end"><button class="btn btn-secondary" type="button" data-close-label-modal>Annuler</button><button class="btn" type="button" id="generate-label-pdf-button">Generer le PDF</button></div>
+  </div>
+</div>
+
+<script id="component-label-data" type="application/json">{{ {'filters': filters, 'current_page_ids': component_label_current_page_ids, 'total': total, 'defaults': component_label_defaults, 'fields': component_label_fields, 'presets': component_label_presets} | tojson | safe }}</script>
+<script src="https://unpkg.com/html5-qrcode" defer></script>
+<script src="/static/component-labels.js" defer></script>
+{% endblock %}

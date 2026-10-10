@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration initiale - {{ app_name }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="{{ current_theme_class }}">
+<main class="container narrow">
+    <section class="card login-card">
+        <h1>Configuration initiale</h1>
+        <p class="muted">Crée le premier administrateur et le premier atelier.</p>
+        {% if setup_error %}<div class="flash flash-error">{{ setup_error }}</div>{% endif %}
+        <form method="post" action="/setup" enctype="multipart/form-data" class="stack-form">
+            <label>Identifiant administrateur
+                <input type="text" name="admin_username" value="{{ form_values.admin_username or 'admin' }}" required autofocus>
+            </label>
+            <label>Mot de passe administrateur
+                <input type="password" name="admin_password" required>
+            </label>
+            <label>Confirmer le mot de passe
+                <input type="password" name="confirm_admin_password" required>
+            </label>
+            <label>Nom du premier atelier
+                <input type="text" name="workshop_name" value="{{ form_values.workshop_name or '' }}" required>
+            </label>
+            <label>Nom de l’application
+                <input type="text" name="app_display_name" value="{{ form_values.app_display_name or '' }}">
+            </label>
+            <label>Nom de l’organisation
+                <input type="text" name="organization_name" value="{{ form_values.organization_name or '' }}">
+            </label>
+            <label>Logo
+                <input type="file" name="logo" accept="image/*">
+            </label>
+            <button class="btn" type="submit">Créer la configuration</button>
+        </form>
+    </section>
+</main>
+</body>
+</html>

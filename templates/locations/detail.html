@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ location.name }}</h1>
+        <p class="muted">{{ components|length }} article(s) dans cet emplacement.</p>
+    </div>
+    {% if can_manage_stock %}
+    <div class="actions-inline">
+        <a class="btn btn-secondary" href="/locations/{{ location.id }}/edit">Modifier</a>
+        <form method="post" action="/locations/{{ location.id }}/delete" onsubmit="return confirm('Supprimer cet emplacement ?');">
+            <button class="btn btn-danger" type="submit">Supprimer</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<div class="detail-grid">
+    <section class="card">
+        <h2>Informations</h2>
+        <dl class="detail-list">
+            <dt>Nom</dt><dd>{{ location.name }}</dd>
+            <dt>Payload QR</dt><dd><code>L:{{ location.id }}</code></dd>
+            <dt>Articles</dt><dd><strong>{{ components|length }}</strong></dd>
+            <dt>Description</dt><dd class="text-preline">{{ location.description or '—' }}</dd>
+        </dl>
+        {% if location.image_path %}
+        <div class="subsection">
+            <img class="detail-image" src="/data/{{ location.image_path }}" alt="{{ location.name }}">
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h2>QR code</h2>
+        <div class="subsection qr-block">
+            <img class="qr-preview" src="/locations/{{ location.id }}/qr.png" alt="QR code {{ location.name }}">
+            <div class="actions">
+                <a class="btn btn-secondary" href="/locations/{{ location.id }}/qr.png" target="_blank">Ouvrir QR</a>
+                <a class="btn btn-secondary" href="/labels/locations.pdf?ids={{ location.id }}&layout=48x25&copies=1">Imprimer etiquette</a>
+            </div>
+            <p class="muted small">Colle ce QR sur une boite ou un bac pour ouvrir directement son contenu dans l'app.</p>
+        </div>
+    </section>
+</div>
+
+<section class="card">
+    <div class="section-head">
+        <h2>Contenu de l'emplacement</h2>
+        <a class="btn btn-secondary" href="/components?location_id={{ location.id }}">Voir avec filtres</a>
+    </div>
+    {% if components %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Reference</th>
+                <th>Designation</th>
+                <th>Famille</th>
+                <th>Marque / fabricant</th>
+                <th>Format / conditionnement</th>
+                <th>Qte</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for component in components %}
+            <tr>
+                <td><a href="/components/{{ component.id }}">{{ component.part_number }}</a></td>
+                <td>{{ component.name }}</td>
+                <td>{{ build_category_path(component.category) or '—' }}</td>
+                <td>{{ component.manufacturer.name if component.manufacturer else '—' }}</td>
+                <td>{{ component.package.name if component.package else '—' }}</td>
+                <td><strong>{{ component.quantity }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Aucun article affecte a cet emplacement.</p>
+    {% endif %}
+</section>
+{% endblock %}

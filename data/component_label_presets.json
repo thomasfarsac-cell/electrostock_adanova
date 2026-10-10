@@ -1,0 +1,47 @@
+{
+  "global_presets": [
+    {
+      "id": "e69916c9d59e4575a89ee7bf3a0d3d55",
+      "name": "boite rangement",
+      "payload": {
+        "source": "filtered",
+        "page_format_id": "a4",
+        "page_width_mm": 210.0,
+        "page_height_mm": 297.0,
+        "label_width_mm": 45.0,
+        "label_height_mm": 25.0,
+        "margin_top_mm": 12.0,
+        "margin_bottom_mm": 12.0,
+        "margin_left_mm": 8.0,
+        "margin_right_mm": 8.0,
+        "gap_horizontal_mm": 0.0,
+        "gap_vertical_mm": 0.0,
+        "text_fields": [
+          "part_number",
+          "name"
+        ],
+        "qr_enabled": true,
+        "qr_fields": [
+          "part_number"
+        ],
+        "qr_error_correction": "L"
+      }
+    }
+  ],
+  "layout_presets": [
+    {
+      "id": "641a2cf3833946f3b9b7deb1848a9191",
+      "name": "CASIERS LIDL",
+      "payload": {
+        "margin_top_mm": 12.0,
+        "margin_bottom_mm": 12.0,
+        "margin_left_mm": 8.0,
+        "margin_right_mm": 8.0,
+        "gap_horizontal_mm": 0.0,
+        "gap_vertical_mm": 0.0,
+        "label_width_mm": 31.0,
+        "label_height_mm": 13.0
+      }
+    }
+  ]
+}

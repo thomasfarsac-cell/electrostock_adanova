@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{% if location %}Modifier{% else %}Nouvel emplacement{% endif %}</h1>
+        <p class="muted">Ajoute une description plus riche, une photo optionnelle et un QR exploitable sur la fiche.</p>
+    </div>
+</div>
+
+{% if form_notice %}
+<div class="card {% if form_notice.tone == 'danger' %}error-card{% else %}success-card{% endif %}">
+    <p class="small">{{ form_notice.message }}</p>
+</div>
+{% endif %}
+
+<form class="card" method="post" action="{{ action_url }}" enctype="multipart/form-data">
+    <div class="grid grid-2">
+        <div>
+            <label>Nom</label>
+            <input type="text" name="name" value="{{ location.name if location else '' }}" required>
+        </div>
+        {% if requires_workshop_choice %}
+        <div>
+            <label>Atelier</label>
+            <select name="workshop_id" required>
+                <option value="">Choisir...</option>
+                {% for workshop in workshops %}
+                <option value="{{ workshop.id }}" {% if location and location.workshop_id == workshop.id %}selected{% endif %}>{{ workshop.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="workshop_id" value="{{ active_workshop_id }}">
+        {% endif %}
+        <div>
+            <label>Payload QR</label>
+            <input type="text" value="{% if location %}L:{{ location.id }}{% else %}Attribue apres creation{% endif %}" disabled>
+        </div>
+        <div class="grid-span-2">
+            <label>Description</label>
+            <textarea name="description" rows="7" placeholder="Exemple: etagere nord, boite 4, sous-bac rouge, acces reserve...">{{ location.description if location and location.description else '' }}</textarea>
+        </div>
+        <div class="grid-span-2">
+            <label>Photo</label>
+            <input type="file" name="image" accept="image/*">
+            {% if location and location.thumbnail_path %}
+            <div class="inline-checkbox"><label><input type="checkbox" name="replace_image" value="true"> Supprimer la photo actuelle si aucune nouvelle n'est envoyee</label></div>
+            <img class="thumb large-thumb" src="/data/{{ location.thumbnail_path }}" alt="{{ location.name }}">
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn" type="submit">Enregistrer</button>
+        <a class="btn btn-secondary" href="{% if location %}/locations/{{ location.id }}{% else %}/locations{% endif %}">Annuler</a>
+    </div>
+</form>
+{% endblock %}

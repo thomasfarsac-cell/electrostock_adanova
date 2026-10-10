@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ component.part_number }}</h1>
+        <p class="muted">{{ component.name }}</p>
+    </div>
+    <div class="actions-inline">
+        <a class="btn btn-secondary" href="/components/{{ component.id }}/movements/export.csv">CSV mouvements</a>
+        {% if can_manage_stock %}
+        <a class="btn" href="/components/{{ component.id }}/edit">Modifier</a>
+        <form method="post" action="/components/{{ component.id }}/delete" onsubmit="return confirm('Supprimer cet article ?');">
+            <button class="btn btn-danger" type="submit">Supprimer</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="detail-grid">
+    <section class="card">
+        <h2>Informations</h2>
+        <dl class="detail-list">
+            {% if item_field_visible(item_profile, 'part_number') %}<dt>{{ item_field_label(item_profile, 'part_number') }}</dt><dd>{{ component.part_number }}</dd>{% endif %}
+            <dt>Désignation</dt><dd>{{ component.name }}</dd>
+            <dt>Famille</dt><dd>{{ build_category_path(component.category) or '—' }}</dd>
+            {% if item_field_visible(item_profile, 'manufacturer') %}<dt>{{ item_field_label(item_profile, 'manufacturer') }}</dt><dd>{{ component.manufacturer.name if component.manufacturer else '—' }}</dd>{% endif %}
+            {% if item_field_visible(item_profile, 'package') %}<dt>{{ item_field_label(item_profile, 'package') }}</dt><dd>{{ component.package.name if component.package else '—' }}</dd>{% endif %}
+            <dt>Emplacement</dt><dd>{% if component.location %}<a href="/locations/{{ component.location.id }}">{{ component.location.name }}</a>{% else %}—{% endif %}</dd>
+            <dt>Stock</dt><dd><strong>{{ component.quantity }}</strong></dd>
+            {% if item_field_visible(item_profile, 'minimum_quantity') %}<dt>{{ item_field_label(item_profile, 'minimum_quantity') }}</dt><dd>{{ component.minimum_quantity }}</dd>{% endif %}
+            <dt>Payload QR</dt><dd><code>C:{{ component.id }}</code></dd>
+            {% if item_field_visible(item_profile, 'datasheet_url') %}<dt>{{ item_field_label(item_profile, 'datasheet_url') }}</dt>
+            <dd>
+                {% if component.datasheet_url %}
+                <a href="{{ component.datasheet_url }}" target="_blank" rel="noreferrer">Ouvrir</a>
+                {% else %}—{% endif %}
+            </dd>{% endif %}
+            {% if item_field_visible(item_profile, 'keywords') %}<dt>{{ item_field_label(item_profile, 'keywords') }}</dt><dd>{{ component.keywords or '—' }}</dd>{% endif %}
+            {% if item_field_visible(item_profile, 'description') %}<dt>{{ item_field_label(item_profile, 'description') }}</dt><dd>{{ component.description or '—' }}</dd>{% endif %}
+            {% if item_field_visible(item_profile, 'notes') %}<dt>{{ item_field_label(item_profile, 'notes') }}</dt><dd>{{ component.notes or '—' }}</dd>{% endif %}
+        </dl>
+    </section>
+
+    <section class="card">
+        <h2>Image / QR code</h2>
+        {% if component.image_path %}
+        <img class="detail-image" src="/data/{{ component.image_path }}" alt="{{ component.name }}">
+        {% else %}
+        <p class="empty">Aucune image.</p>
+        {% endif %}
+        <div class="subsection qr-block">
+            <img class="qr-preview" src="/components/{{ component.id }}/qr.png" alt="QR code {{ component.part_number }}">
+            <div class="actions">
+                <a class="btn btn-secondary" href="/components/{{ component.id }}/qr.png" target="_blank">Ouvrir QR</a>
+                <a class="btn btn-secondary" href="/labels/components.pdf?ids={{ component.id }}&layout=48x25&copies=1">Étiquette PDF</a>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="two-columns">
+    <section class="card">
+        <div class="section-head">
+            <h2>Mouvement de stock</h2>
+            <span class="muted">Entrée, sortie ou correction d’inventaire</span>
+        </div>
+        {% if can_manage_stock %}
+        <form method="post" action="/components/{{ component.id }}/movements/new" class="stack-form">
+            <label>Type
+                <select name="movement_action">
+                    <option value="in">Entrée</option>
+                    <option value="out">Sortie</option>
+                    <option value="set">Définir le stock exact</option>
+                </select>
+            </label>
+            <label>Quantité
+                <input type="number" name="quantity" min="1" value="1" required>
+            </label>
+            <label>Raison
+                <input type="text" name="reason" placeholder="Achat, montage, inventaire, casse...">
+            </label>
+            <label>Notes
+                <textarea name="notes" rows="3" placeholder="Optionnel"></textarea>
+            </label>
+            <button class="btn" type="submit">Enregistrer le mouvement</button>
+        </form>
+        {% else %}
+        <p class="empty">Lecture seule.</p>
+        {% endif %}
+    </section>
+
+    <section class="card">
+        <h2>Champs personnalisés</h2>
+        {% if component.custom_values %}
+        <table class="table compact">
+            <thead><tr><th>Champ</th><th>Valeur</th></tr></thead>
+            <tbody>
+                {% for item in component.custom_values %}
+                <tr>
+                    <td>{{ item.custom_field.name }}{% if item.custom_field.unit %} ({{ item.custom_field.unit }}){% endif %}</td>
+                    <td>{{ item.value }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Aucune valeur personnalisée.</p>
+        {% endif %}
+    </section>
+</div>
+
+<section class="card">
+    <div class="section-head">
+        <h2>Historique des mouvements</h2>
+        <a class="btn btn-secondary" href="/components/{{ component.id }}/movements/export.csv">Exporter CSV</a>
+    </div>
+    {% if movements %}
+    <table class="table compact">
+        <thead>
+            <tr><th>Date</th><th>Type</th><th>Delta</th><th>Stock après</th><th>Raison</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+            {% for movement in movements %}
+            <tr>
+                <td>{{ movement.created_at.strftime('%Y-%m-%d %H:%M') if movement.created_at else '—' }}</td>
+                <td><span class="badge badge-{{ movement.movement_type }}">{{ movement.movement_type }}</span></td>
+                <td>{{ movement.quantity_delta }}</td>
+                <td>{{ movement.resulting_quantity }}</td>
+                <td>{{ movement.reason or '—' }}{% if movement.notes %}<div class="muted small">{{ movement.notes }}</div>{% endif %}</td>
+                <td>{{ movement.source or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Aucun mouvement enregistré.</p>
+    {% endif %}
+</section>
+{% endblock %}

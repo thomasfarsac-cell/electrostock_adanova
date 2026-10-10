@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Parametres</h1>
+        <p class="muted">Configuration generale de l'application et de l'integration IA.</p>
+    </div>
+</div>
+
+{% if settings_notice %}
+<div class="card {% if settings_notice.tone == 'danger' %}error-card{% elif settings_notice.tone == 'success' %}success-card{% endif %}">
+    <strong>Parametres</strong>
+    <p class="small">{{ settings_notice.message }}</p>
+</div>
+{% endif %}
+
+<section class="card narrow">
+    <h2>Identite</h2>
+    <form method="post" action="/settings/branding" enctype="multipart/form-data" class="stack-form">
+        <label>Nom affiche de l'application
+            <input type="text" name="app_display_name" value="{{ app_display_name_setting }}" placeholder="ElectroStock">
+        </label>
+        <label>Organisation / fablab
+            <input type="text" name="organization_name" value="{{ organization_name_setting }}" placeholder="Nom de l'association, fablab ou atelier">
+        </label>
+        <label>Logo
+            <input type="file" name="logo" accept="image/*">
+        </label>
+        {% if brand_logo_path_setting %}
+        <div class="actions-inline">
+            <img class="thumb" src="/data/{{ brand_logo_path_setting }}" alt="Logo actuel">
+            <label class="inline-checkbox"><input type="checkbox" name="remove_logo" value="true"> Supprimer le logo actuel</label>
+        </div>
+        {% endif %}
+        <button class="btn" type="submit">Enregistrer l'identite</button>
+    </form>
+</section>
+
+<section class="card narrow">
+    <h2>API OpenAI</h2>
+    {% if openai_api_key_present %}
+    <p class="small">Cle configuree: <code>{{ openai_api_key_masked }}</code></p>
+    {% else %}
+    <p class="small muted">Aucune cle API enregistree pour le moment.</p>
+    {% endif %}
+
+    <form method="post" action="/settings/openai-api-key" class="stack-form">
+        <label>Cle API
+            <input type="password" name="openai_api_key" placeholder="sk-proj-..." autocomplete="off">
+        </label>
+        <button class="btn" type="submit">{% if openai_api_key_present %}Remplacer la cle{% else %}Enregistrer la cle{% endif %}</button>
+    </form>
+
+    <form method="post" action="/settings/openai-web-search" class="stack-form">
+        <label class="inline-checkbox">
+            <input type="checkbox" name="openai_web_search_enabled" value="true" {% if openai_lookup_web_search %}checked{% endif %}>
+            Autoriser les recherches web pour l'aide IA de fiche
+        </label>
+        <button class="btn btn-secondary" type="submit">Enregistrer le reglage API</button>
+    </form>
+
+    {% if openai_api_key_present %}
+    <form method="post" action="/settings/openai-api-key/delete" class="inline-form" onsubmit="return confirm('Supprimer la cle API OpenAI ?');">
+        <button class="btn btn-danger icon-btn" type="submit" title="Supprimer la cle API" aria-label="Supprimer la cle API">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v8h-2V9Zm4 0h2v8h-2V9ZM7 9h2v8H7V9Zm-1 10h12l1-12H5l1 12Z" fill="currentColor"></path>
+            </svg>
+            Supprimer la cle
+        </button>
+    </form>
+    {% endif %}
+</section>
+
+<section class="card narrow">
+    <h2>Sauvegardes</h2>
+    <p class="small muted">Cree une archive `.zip` complete avec les tables en CSV, les parametres utiles, les presets, le hash d'authentification et les photos rangees par dossier.</p>
+    <div class="actions">
+        <a class="btn" href="/settings/backups/export.zip">Creer une archive</a>
+    </div>
+    <form method="post" action="/settings/backups/restore" enctype="multipart/form-data" class="stack-form restore-form" onsubmit="return confirmRestoreMode(this);">
+        <label>Archive de sauvegarde
+            <input type="file" name="backup_archive" accept=".zip,application/zip" required>
+        </label>
+        <label>Mode de restauration
+            <select name="restore_mode">
+                <option value="merge">Completer / fusionner la base existante</option>
+                <option value="replace">Remplacer completement la base actuelle</option>
+            </select>
+        </label>
+        <p class="small muted">`Completer` ajoute et fusionne les donnees de l'archive. `Remplacer` restaure l'etat complet de l'archive, y compris les parametres et les medias.</p>
+        <button class="btn btn-secondary" type="submit">Restaurer une archive</button>
+    </form>
+</section>
+
+<section class="card reference-card">
+    <button class="reference-card-head" type="button" id="settings-ai-toggle" aria-expanded="false">
+        <span>
+            <strong>Aide IA de fiche</strong>
+            <span class="muted small">Configuration du prompt et des presets</span>
+        </span>
+        <span class="reference-toggle-indicator" id="settings-ai-indicator">+</span>
+    </button>
+    <div class="reference-card-body reference-card-collapsed" id="settings-ai-body">
+        <p class="small">Modele: <code>{{ openai_lookup_model }}</code></p>
+        <p class="small">Recherche web autorisee: <strong>{{ 'oui' if openai_lookup_web_search else 'non' }}</strong></p>
+        <p class="small muted">L'IA ne choisit pas l'emplacement. Le format / conditionnement peut etre cree automatiquement s'il manque dans le referentiel.</p>
+
+        <div class="subsection">
+            <h3>Prompt systeme</h3>
+            <form method="post" action="/settings/component-lookup-prompt" class="stack-form">
+                <label>Prompt modifiable
+                    <textarea class="settings-prompt-input" name="component_lookup_system_prompt" rows="14">{{ component_lookup_system_prompt_current }}</textarea>
+                </label>
+                <label>Nom du preset
+                    <input type="text" name="preset_name" placeholder="Ex: Recherche tres technique">
+                </label>
+                <div class="actions">
+                    <button class="btn" type="submit">Sauvegarder</button>
+                    <button class="btn btn-secondary" type="submit" formaction="/settings/component-lookup-prompt/presets/new">Appliquer + enregistrer en preset</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="subsection">
+            <h3>Presets</h3>
+            <div class="settings-preset-list">
+                {% for preset in component_lookup_prompt_presets %}
+                <section class="card settings-preset-card">
+                    <div class="section-head">
+                        <div>
+                            <strong>{{ preset.name }}</strong>
+                            {% if preset.is_default %}<span class="badge">defaut</span>{% endif %}
+                        </div>
+                    </div>
+                    <form method="post" action="/settings/component-lookup-prompt/presets/{{ preset.id }}/apply" class="inline-form">
+                        <button class="btn btn-secondary" type="submit">Utiliser ce preset</button>
+                    </form>
+
+                    {% if preset.is_default %}
+                    <div class="notice-box small">Le preset par defaut sert de base de secours et ne peut pas etre supprime.</div>
+                    {% else %}
+                    <p class="small muted">{{ preset.prompt[:220] }}{% if preset.prompt|length > 220 %}...{% endif %}</p>
+                    <form method="post" action="/settings/component-lookup-prompt/presets/{{ preset.id }}/delete" class="inline-form" onsubmit="return confirm('Supprimer ce preset ?');">
+                        <button class="btn btn-danger" type="submit">Supprimer</button>
+                    </form>
+                    {% endif %}
+                </section>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('settings-ai-toggle');
+    const body = document.getElementById('settings-ai-body');
+    const indicator = document.getElementById('settings-ai-indicator');
+    if (!toggle || !body || !indicator) return;
+
+    toggle.addEventListener('click', () => {
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+        body.classList.toggle('reference-card-collapsed', expanded);
+        indicator.textContent = expanded ? '+' : '−';
+    });
+});
+
+function confirmRestoreMode(form) {
+    const mode = form.querySelector('[name="restore_mode"]')?.value || 'merge';
+    if (mode === 'replace') {
+        return confirm('La restauration en mode remplacement va ecraser la base actuelle, les images et certains parametres. Continuer ?');
+    }
+    return confirm('Lancer la restauration et fusionner les donnees de cette archive avec la base actuelle ?');
+}
+</script>
+{% endblock %}

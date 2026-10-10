@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% macro render_tree(parent_id, grouped, depth=1) %}
+    {% for item in grouped.get(parent_id, []) %}
+    {% set children = grouped.get(item.id, []) %}
+    <li class="tree-node">
+        <div class="tree-row">
+            <div class="tree-main">
+                {% if children %}
+                <button class="tree-toggle" type="button" aria-expanded="false" data-target="children-{{ item.id }}">+</button>
+                {% else %}
+                <span class="tree-toggle tree-toggle-empty">·</span>
+                {% endif %}
+                <div>
+                    <strong>{{ item.name }}</strong>
+                    <div class="muted small">{{ build_category_path(item) }} · {{ 'active' if item.is_active else 'inactive' }}</div>
+                </div>
+            </div>
+            {% if can_manage_stock %}
+            <div class="tree-actions">
+                <details>
+                    <summary class="btn btn-secondary">Modifier</summary>
+                    <form class="inline-form card category-edit-form" method="post" action="/categories/{{ item.id }}/edit">
+                        <label>Nom<input type="text" name="name" value="{{ item.name }}" required></label>
+                        <label>Parent</label>
+                        <div
+                            class="category-cascade"
+                            data-hidden-input-name="parent_id"
+                            data-selected-leaf-id="{{ item.parent_id or '' }}"
+                            data-children='{{ category_children_map | tojson | safe }}'
+                            data-level-labels='{{ category_level_labels | tojson | safe }}'
+                            data-default-chain='{{ edit_chain_map_json | safe }}'
+                            data-edit-id="{{ item.id }}">
+                        </div>
+                        <label>Ordre<input type="number" name="sort_order" value="{{ item.sort_order }}"></label>
+                        <label class="inline-checkbox"><input type="checkbox" name="is_active" value="true" {% if item.is_active %}checked{% endif %}> Active</label>
+                        <button class="btn" type="submit">Sauver</button>
+                    </form>
+                </details>
+                <form method="post" action="/categories/{{ item.id }}/delete" onsubmit="return confirm('Supprimer cette catégorie ?');">
+                    <button class="btn btn-danger" type="submit">Supprimer</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% if children %}
+        <ul class="tree tree-collapsed" id="children-{{ item.id }}">
+            {{ render_tree(item.id, grouped, depth + 1) }}
+        </ul>
+        {% endif %}
+    </li>
+    {% endfor %}
+{% endmacro %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Catégories</h1>
+        <p class="muted">Arborescence dynamique jusqu'à 6 niveaux.</p>
+    </div>
+</div>
+
+<div class="two-columns">
+    {% if can_manage_stock %}
+    <section class="card">
+        <h2>Ajouter une catégorie</h2>
+        <form method="post" action="/categories/new">
+            <label>Nom<input type="text" name="name" required></label>
+            {% if requires_workshop_choice %}
+            <label>Atelier
+                <select name="workshop_id" required>
+                    <option value="">Choisir...</option>
+                    {% for workshop in workshops %}
+                    <option value="{{ workshop.id }}">{{ workshop.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            {% else %}
+            <input type="hidden" name="workshop_id" value="{{ active_workshop_id }}">
+            {% endif %}
+            <label>Parent</label>
+            <div
+                class="category-cascade"
+                data-hidden-input-name="parent_id"
+                data-selected-leaf-id=""
+                data-children='{{ category_children_map | tojson | safe }}'
+                data-level-labels='{{ category_level_labels | tojson | safe }}'>
+            </div>
+            <label>Ordre<input type="number" name="sort_order" value="0"></label>
+            <button class="btn" type="submit">Ajouter</button>
+        </form>
+    </section>
+    {% endif %}
+
+    <section class="card">
+        <div class="section-head">
+            <h2>Arbre actuel</h2>
+            <span class="muted">Clique sur + pour dérouler une branche</span>
+        </div>
+        <ul class="tree root-tree">
+            {{ render_tree(None, grouped_categories, 1) }}
+        </ul>
+    </section>
+</div>
+{% endblock %}

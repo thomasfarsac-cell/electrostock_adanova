@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Utilisateurs</h1>
+        <p class="muted">Comptes, profils et roles d'acces.</p>
+    </div>
+    <div class="actions-inline">
+        <button class="btn" type="button" data-open-modal="create-user-modal">+ Creer un utilisateur</button>
+    </div>
+</div>
+
+{% if users_notice %}
+<div class="card {% if users_notice.tone == 'danger' %}error-card{% else %}success-card{% endif %}">
+    <p class="small">{{ users_notice.message }}</p>
+</div>
+{% endif %}
+
+<section class="card">
+    {% if users %}
+    <div class="table-scroll">
+        <table class="table compact users-table">
+            <thead>
+                <tr>
+                    <th>Nom affiche</th>
+                    <th>Pseudo</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Theme</th>
+                    <th>Etat</th>
+                    <th>Derniere connexion</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>
+                        <button class="link-button" type="button" data-open-modal="edit-user-{{ user.id }}">
+                            {{ user.display_name or user.username }}
+                        </button>
+                    </td>
+                    <td><code>{{ user.username }}</code></td>
+                    <td>{{ user.email or '-' }}</td>
+                    <td><span class="badge">{{ user.role }}</span></td>
+                    <td>{{ theme_label(user.theme_id) }}</td>
+                    <td>{{ 'Actif' if user.is_active else 'Inactif' }}</td>
+                    <td>{{ user.last_login_at.strftime('%Y-%m-%d %H:%M') if user.last_login_at else 'Jamais' }}</td>
+                    <td>
+                        <div class="actions-inline">
+                            <button class="btn btn-secondary btn-small" type="button" data-open-modal="edit-user-{{ user.id }}">Modifier</button>
+                            <button class="btn btn-secondary btn-small" type="button" data-open-modal="reset-user-{{ user.id }}">Mot de passe</button>
+                            <button class="btn btn-secondary btn-small" type="button" data-open-modal="danger-user-{{ user.id }}">Actions</button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty">Aucun utilisateur.</p>
+    {% endif %}
+</section>
+
+<div class="modal-shell" id="create-user-modal" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="create-user-title">
+        <div class="section-head">
+            <h2 id="create-user-title">Creer un utilisateur</h2>
+            <button class="btn btn-secondary" type="button" data-close-modal>Fermer</button>
+        </div>
+        <form method="post" action="/admin/users/new" class="grid grid-2">
+            <label>Pseudo / utilisateur<input type="text" name="username" required></label>
+            <label>Nom affiche<input type="text" name="display_name"></label>
+            <label>Prenom<input type="text" name="first_name"></label>
+            <label>Nom<input type="text" name="last_name"></label>
+            <label>Email<input type="email" name="email"></label>
+            <label>Mot de passe<input type="password" name="password" required></label>
+            <label>Role
+                <select name="role">
+                    {% for value, label in roles %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="inline-checkbox padded-top"><input type="checkbox" name="is_active" value="true" checked> Actif</label>
+            <div class="actions-inline modal-actions-end grid-span-2">
+                <button class="btn btn-secondary" type="button" data-close-modal>Annuler</button>
+                <button class="btn" type="submit">Creer</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+{% for user in users %}
+<div class="modal-shell" id="edit-user-{{ user.id }}" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-user-title-{{ user.id }}">
+        <div class="section-head">
+            <h2 id="edit-user-title-{{ user.id }}">Modifier {{ user.display_name or user.username }}</h2>
+            <button class="btn btn-secondary" type="button" data-close-modal>Fermer</button>
+        </div>
+        <form method="post" action="/admin/users/{{ user.id }}/edit" class="grid grid-2">
+            <label>Pseudo / utilisateur<input type="text" name="username" value="{{ user.username }}" required></label>
+            <label>Nom affiche<input type="text" name="display_name" value="{{ user.display_name or '' }}"></label>
+            <label>Prenom<input type="text" name="first_name" value="{{ user.first_name or '' }}"></label>
+            <label>Nom<input type="text" name="last_name" value="{{ user.last_name or '' }}"></label>
+            <label>Email<input type="email" name="email" value="{{ user.email or '' }}"></label>
+            <label>Role
+                <select name="role">
+                    {% for value, label in roles %}
+                    <option value="{{ value }}" {% if user.role == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="inline-checkbox"><input type="checkbox" name="is_active" value="true" {% if user.is_active %}checked{% endif %}> Actif</label>
+            <div class="actions-inline modal-actions-end grid-span-2">
+                <button class="btn btn-secondary" type="button" data-close-modal>Annuler</button>
+                <button class="btn" type="submit">Enregistrer</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<div class="modal-shell" id="reset-user-{{ user.id }}" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-card narrow" role="dialog" aria-modal="true" aria-labelledby="reset-user-title-{{ user.id }}">
+        <div class="section-head">
+            <h2 id="reset-user-title-{{ user.id }}">Reinitialiser le mot de passe</h2>
+            <button class="btn btn-secondary" type="button" data-close-modal>Fermer</button>
+        </div>
+        <p class="muted">Utilisateur: <strong>{{ user.display_name or user.username }}</strong></p>
+        <form method="post" action="/admin/users/{{ user.id }}/reset-password" class="stack-form">
+            <label>Nouveau mot de passe<input type="password" name="password" required></label>
+            <div class="actions-inline modal-actions-end">
+                <button class="btn btn-secondary" type="button" data-close-modal>Annuler</button>
+                <button class="btn" type="submit">Reinitialiser</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+<div class="modal-shell" id="danger-user-{{ user.id }}" hidden>
+    <div class="modal-backdrop" data-close-modal></div>
+    <section class="modal-card narrow" role="dialog" aria-modal="true" aria-labelledby="danger-user-title-{{ user.id }}">
+        <div class="section-head">
+            <h2 id="danger-user-title-{{ user.id }}">Actions sensibles</h2>
+            <button class="btn btn-secondary" type="button" data-close-modal>Fermer</button>
+        </div>
+        <p class="muted">Utilisateur: <strong>{{ user.display_name or user.username }}</strong></p>
+        <div class="actions-inline">
+            <form method="post" action="/admin/users/{{ user.id }}/toggle-active">
+                <button class="btn btn-secondary" type="submit">{{ 'Desactiver' if user.is_active else 'Activer' }}</button>
+            </form>
+            <form method="post" action="/admin/users/{{ user.id }}/delete" onsubmit="return confirm('Supprimer cet utilisateur ?');">
+                <button class="btn btn-danger" type="submit">Supprimer</button>
+            </form>
+        </div>
+        <p class="small muted">Le dernier administrateur actif ne peut pas etre desactive ni supprime.</p>
+    </section>
+</div>
+{% endfor %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const closeAll = () => {
+        document.querySelectorAll('.modal-shell').forEach((modal) => {
+            modal.hidden = true;
+        });
+        document.body.classList.remove('modal-open');
+    };
+
+    document.querySelectorAll('[data-open-modal]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const modal = document.getElementById(button.dataset.openModal);
+            if (!modal) return;
+            closeAll();
+            modal.hidden = false;
+            document.body.classList.add('modal-open');
+            const firstField = modal.querySelector('input, select, button');
+            if (firstField) firstField.focus();
+        });
+    });
+
+    document.querySelectorAll('[data-close-modal]').forEach((button) => {
+        button.addEventListener('click', closeAll);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeAll();
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Import d'articles</h1>
+        <p class="muted">CSV, XLS, XLSX ou ODS. Tu peux mapper les colonnes manuellement avant d’importer.</p>
+    </div>
+    <div class="actions-inline">
+        <a class="btn btn-secondary" href="/imports/components/template.csv">Télécharger le template CSV</a>
+        <a class="btn btn-secondary" href="/components/export.csv">Exemple export CSV</a>
+    </div>
+</div>
+
+{% if error_message %}
+<div class="card error-card">{{ error_message }}</div>
+{% endif %}
+
+{% if import_result %}
+<section class="card">
+    <h2>Résultat de l’import</h2>
+    <div class="stats-grid import-stats">
+        <div class="stat-card card"><span class="stat-label">Total lignes</span><strong>{{ import_result.total }}</strong></div>
+        <div class="stat-card card"><span class="stat-label">Créées</span><strong>{{ import_result.created }}</strong></div>
+        <div class="stat-card card"><span class="stat-label">Mises à jour</span><strong>{{ import_result.updated }}</strong></div>
+        <div class="stat-card card"><span class="stat-label">Ignorées</span><strong>{{ import_result.skipped }}</strong></div>
+    </div>
+    {% if import_result.errors %}
+    <h3>Erreurs</h3>
+    <ul class="error-list">
+        {% for item in import_result.errors %}
+        <li>{{ item }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="success-text">Import terminé sans erreur bloquante.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+<div class="two-columns import-layout">
+    <section class="card">
+        <h2>1. Charger un fichier</h2>
+        <form method="post" action="/imports/components/preview" enctype="multipart/form-data" class="stack-form">
+            <input type="file" name="source_file" accept=".csv,.xls,.xlsx,.ods" required>
+            <button class="btn" type="submit">Analyser le fichier</button>
+        </form>
+        <div class="notice-box">
+            <strong>Conseil :</strong>
+            <p>Le plus simple est d’exporter un CSV depuis l’application, de le remplir dans Excel/LibreOffice, puis de le réimporter.</p>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Champs importables</h2>
+        <table class="table compact">
+            <thead><tr><th>Champ</th><th>Obligatoire</th></tr></thead>
+            <tbody>
+                {% for field in import_fields %}
+                <tr>
+                    <td>{{ field.label }}</td>
+                    <td>{{ 'Oui' if field.required else 'Non' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+
+{% if preview %}
+<section class="card">
+    <div class="section-head">
+        <h2>2. Mapping des colonnes</h2>
+        <span class="muted">{{ preview.filename }} · {{ preview.row_count }} ligne(s)</span>
+    </div>
+    <form method="post" action="/imports/components/run" class="stack-form">
+        <input type="hidden" name="token" value="{{ token }}">
+        <div class="grid grid-3">
+            <div>
+                <label>Mode d’import</label>
+                <select name="import_mode">
+                    <option value="upsert">Créer ou mettre à jour</option>
+                    <option value="create_only">Créer seulement</option>
+                    <option value="update_only">Mettre à jour seulement</option>
+                </select>
+            </div>
+            <div class="inline-checkbox padded-top">
+                <label><input type="checkbox" name="create_missing_references" value="true" checked> Créer marques / fabricants, formats / conditionnements et emplacements manquants</label>
+            </div>
+            <div class="inline-checkbox padded-top">
+                <label><input type="checkbox" name="create_missing_categories" value="true" checked> Créer les catégories manquantes à partir du chemin</label>
+            </div>
+        </div>
+
+        <div class="grid grid-2 mapping-grid">
+            {% for field in import_fields %}
+            <div>
+                <label>{{ field.label }}{% if field.required %} *{% endif %}</label>
+                <select name="map_{{ field.key }}">
+                    <option value="">— Ignorer —</option>
+                    {% for header in preview.headers %}
+                    <option value="{{ header }}" {% if preview.suggested_mapping.get(field.key) == header %}selected{% endif %}>{{ header }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="actions">
+            <button class="btn" type="submit">Lancer l’import</button>
+            <a class="btn btn-secondary" href="/imports/components">Annuler</a>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <div class="section-head">
+        <h2>Aperçu des données</h2>
+        <span class="muted">10 premières lignes</span>
+    </div>
+    <div class="table-scroll">
+        <table class="table compact preview-table">
+            <thead>
+                <tr>
+                    {% for header in preview.headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview.preview_rows %}
+                <tr>
+                    {% for header in preview.headers %}
+                    <td>{{ row.get(header, '') }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Parametres atelier</h1>
+        <p class="muted">{{ workshop.name }}</p>
+    </div>
+</div>
+
+<form method="post" action="/workshops/settings" class="card">
+    <div class="grid grid-2">
+        <label>Nom<input type="text" name="name" value="{{ workshop.name }}" required></label>
+        <label>Ordre<input type="number" name="sort_order" value="{{ workshop.sort_order }}"></label>
+        <label class="grid-span-2">Description<textarea name="description" rows="4">{{ workshop.description or '' }}</textarea></label>
+        <label class="inline-checkbox"><input type="checkbox" name="is_active" value="true" {% if workshop.is_active %}checked{% endif %}> Atelier actif</label>
+        <label class="grid-span-2">Prompt IA atelier<textarea name="ai_prompt" rows="8">{{ workshop.ai_prompt or '' }}</textarea></label>
+    </div>
+    <section class="subsection">
+        <h2>Profil des articles</h2>
+        <p class="muted small">Configure uniquement les libelles et la visibilite des champs integres. Les donnees restent conservees.</p>
+        <label>Modèle de profil
+            <select name="item_profile_template" id="item-profile-template-select">
+                {% for template in item_profile_template_options %}
+                <option value="{{ template.id }}" {% if current_item_profile_template == template.id %}selected{% endif %}>{{ template.label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="table-scroll">
+            <table class="table compact">
+                <thead>
+                    <tr><th>Champ</th><th>Visible</th><th>Libelle affiche</th></tr>
+                </thead>
+                <tbody>
+                    {% for field in item_profile_fields %}
+                    <tr>
+                        <td><code>{{ field.key }}</code></td>
+                        <td>
+                            <label class="inline-checkbox">
+                                <input type="checkbox" name="item_field_{{ field.key }}_visible" value="true" data-profile-visible="{{ field.key }}" {% if field.visible %}checked{% endif %}>
+                                Oui
+                            </label>
+                        </td>
+                        <td><input type="text" name="item_field_{{ field.key }}_label" value="{{ field.label }}" data-profile-label="{{ field.key }}"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    <div class="actions">
+        <button class="btn" type="submit">Enregistrer</button>
+        <a class="btn btn-secondary" href="/admin/workshops">Tous les ateliers</a>
+    </div>
+</form>
+<script id="item-profile-template-data" type="application/json">{{ item_profile_template_data | tojson | safe }}</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const select = document.getElementById('item-profile-template-select');
+    const dataNode = document.getElementById('item-profile-template-data');
+    if (!select || !dataNode) return;
+    const templates = JSON.parse(dataNode.textContent || '{}');
+
+    const markCustom = () => {
+        if (select.value !== 'custom') {
+            select.value = 'custom';
+        }
+    };
+
+    select.addEventListener('change', () => {
+        const template = templates[select.value];
+        if (!template || !template.fields) return;
+        Object.entries(template.fields).forEach(([key, config]) => {
+            const visible = document.querySelector(`[data-profile-visible="${key}"]`);
+            const label = document.querySelector(`[data-profile-label="${key}"]`);
+            if (visible) visible.checked = Boolean(config.visible);
+            if (label) label.value = config.label || '';
+        });
+    });
+
+    document.querySelectorAll('[data-profile-visible], [data-profile-label]').forEach((field) => {
+        field.addEventListener('input', markCustom);
+        field.addEventListener('change', markCustom);
+    });
+});
+</script>
+{% endblock %}

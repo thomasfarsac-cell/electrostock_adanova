@@ -1,0 +1,18 @@
+services:
+  electrostock:
+    build: .
+    container_name: electrostock
+    restart: unless-stopped
+    ports:
+      - "8036:8000"
+    environment:
+      APP_NAME: ${APP_NAME:-ElectroStock}
+      APP_DATA_DIR: ${APP_DATA_DIR:-/app/data}
+      APP_DB_URL: ${APP_DB_URL:-sqlite:////app/data/app.db}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-change-me}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_COMPONENT_LOOKUP_MODEL: ${OPENAI_COMPONENT_LOOKUP_MODEL:-gpt-4o-mini}
+      OPENAI_COMPONENT_LOOKUP_USE_WEB_SEARCH: ${OPENAI_COMPONENT_LOOKUP_USE_WEB_SEARCH:-true}
+      OPENAI_COMPONENT_LOOKUP_TIMEOUT: ${OPENAI_COMPONENT_LOOKUP_TIMEOUT:-45}
+    volumes:
+      - ./data:/app/data

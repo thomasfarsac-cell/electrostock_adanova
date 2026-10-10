@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="{{ current_theme_class }}">
+    <header class="topbar">
+        <div class="brand">
+            <a href="/">
+                {% if brand_logo_path %}<img class="brand-logo" src="/data/{{ brand_logo_path }}" alt="{{ app_name }}">{% endif %}
+                <span>
+                    <span class="brand-name">{{ app_name }}</span>
+                    {% if organization_name %}<span class="brand-org">{{ organization_name }}</span>{% endif %}
+                </span>
+            </a>
+        </div>
+        <nav class="nav">
+            <a href="/">Dashboard</a>
+            <a href="/components">Articles</a>
+            <a href="/locations">Emplacements</a>
+            <a href="/categories">Catégories</a>
+            <a href="/references">Référentiels</a>
+            {% if can_manage_users %}
+            <a href="/admin/users">Utilisateurs</a>
+            <a href="/admin/workshops">Ateliers</a>
+            <a href="/settings">Parametres</a>
+            {% endif %}
+            {% if can_manage_stock %}
+            <a href="/imports/components">Imports</a>
+            {% endif %}
+        </nav>
+        <form method="post" action="/workshops/select" class="workshop-menu">
+            <label for="workshop-select">Atelier</label>
+            <select id="workshop-select" name="workshop_id" onchange="this.form.submit()">
+                <option value="all" {% if active_workshop_is_all %}selected{% endif %}>Tous les ateliers</option>
+                {% for workshop in workshops_for_toolbar %}
+                <option value="{{ workshop.id }}" {% if active_workshop_id == workshop.id %}selected{% endif %}>{{ workshop.name }}</option>
+                {% endfor %}
+            </select>
+            {% if can_manage_users and active_workshop %}
+            <a class="btn btn-secondary btn-small" href="/workshops/settings">Parametres atelier</a>
+            {% endif %}
+        </form>
+        {% if auth_enabled %}
+        <form method="post" action="/logout" class="user-menu">
+            {% if current_user %}
+            <span class="user-menu-text">
+                <a href="/profile"><strong>{{ current_user_display_name }}</strong></a>
+                <span>{{ current_user_role_label }}</span>
+            </span>
+            {% endif %}
+            <button class="btn btn-secondary btn-small" type="submit">Déconnexion</button>
+        </form>
+        {% endif %}
+    </header>
+    {% if persistent_notice %}
+    <div class="persistent-banner">{{ persistent_notice }}</div>
+    {% endif %}
+    <div class="scanbar-wrap">
+        <form class="scanbar" method="get" action="/scan">
+            <input type="text" name="raw" placeholder="Scan intelligent : C:123, L:12, COMPONENT_ID:123, IRLZ44N..." autocomplete="off">
+            <button class="btn" type="submit">Scanner / Ouvrir</button>
+        </form>
+    </div>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const createOption = (value, label, selected = false) => {
+        const option = document.createElement('option');
+        option.value = String(value ?? '');
+        option.textContent = label;
+        option.selected = selected;
+        return option;
+    };
+
+    const initCategoryCascade = (container) => {
+        const childrenMap = JSON.parse(container.dataset.children || '{}');
+        const levelLabels = JSON.parse(container.dataset.levelLabels || '[]');
+        const defaultChainMap = container.dataset.defaultChain ? JSON.parse(container.dataset.defaultChain) : {};
+        const editId = container.dataset.editId || '';
+        const selectedLeafId = container.dataset.selectedLeafId || '';
+        const hiddenInputName = container.dataset.hiddenInputName || 'category_id';
+        const parentById = {};
+
+        Object.entries(childrenMap).forEach(([parentKey, items]) => {
+            items.forEach((item) => {
+                parentById[String(item.id)] = parentKey === 'root' ? '' : String(parentKey);
+            });
+        });
+
+        const deriveChainFromLeaf = (leafId) => {
+            const chain = [];
+            let current = leafId ? String(leafId) : '';
+            while (current) {
+                chain.unshift(current);
+                current = parentById[current] || '';
+            }
+            return chain;
+        };
+
+        container.querySelectorAll('.cascade-level').forEach((node) => node.remove());
+        const existingHidden = container.querySelector(`input[type="hidden"][name="${hiddenInputName}"]`);
+        if (existingHidden) {
+            existingHidden.remove();
+        }
+        const hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = hiddenInputName;
+        hiddenInput.value = selectedLeafId;
+        container.appendChild(hiddenInput);
+
+        const initialChain = [];
+        if (editId && defaultChainMap[editId]) {
+            defaultChainMap[editId].forEach((item) => initialChain.push(String(item)));
+        } else if (selectedLeafId) {
+            deriveChainFromLeaf(selectedLeafId).forEach((item) => initialChain.push(String(item)));
+        }
+
+        const renderLevel = (parentKey, selectedValue, levelIndex) => {
+            const key = parentKey || 'root';
+            const options = childrenMap[key] || [];
+            if (!options.length) return;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'cascade-level';
+            const label = document.createElement('label');
+            label.textContent = levelLabels[levelIndex]?.label || `Niveau ${levelIndex + 1}`;
+            const select = document.createElement('select');
+            select.dataset.level = String(levelIndex);
+            select.appendChild(createOption('', '— Aucun —', !selectedValue));
+
+            options.forEach((item) => {
+                if (editId && String(item.id) === String(editId)) return;
+                select.appendChild(createOption(item.id, item.name, String(item.id) === String(selectedValue || '')));
+            });
+
+            select.addEventListener('change', () => {
+                const currentLevel = Number(select.dataset.level);
+                [...container.querySelectorAll('select[data-level]')]
+                    .filter((node) => Number(node.dataset.level) > currentLevel)
+                    .forEach((node) => node.parentElement.remove());
+
+                hiddenInput.value = select.value || '';
+                if (select.value && (childrenMap[select.value] || []).length) {
+                    renderLevel(select.value, '', currentLevel + 1);
+                }
+            });
+
+            wrapper.appendChild(label);
+            wrapper.appendChild(select);
+            container.appendChild(wrapper);
+
+            hiddenInput.value = select.value || hiddenInput.value;
+            if (selectedValue && (childrenMap[String(selectedValue)] || []).length) {
+                renderLevel(String(selectedValue), initialChain[levelIndex + 1] || '', levelIndex + 1);
+            }
+        };
+
+        renderLevel('root', initialChain[0] || '', 0);
+    };
+
+    window.initCategoryCascade = initCategoryCascade;
+    window.setCategoryCascadeValue = (container, value) => {
+        if (!container) return;
+        container.dataset.selectedLeafId = value ? String(value) : '';
+        initCategoryCascade(container);
+    };
+
+    document.querySelectorAll('.category-cascade').forEach((container) => {
+        initCategoryCascade(container);
+    });
+
+    document.querySelectorAll('.tree-toggle').forEach((button) => {
+        const targetId = button.dataset.target;
+        if (!targetId) return;
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        button.addEventListener('click', () => {
+            const expanded = button.getAttribute('aria-expanded') === 'true';
+            button.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            button.textContent = expanded ? '+' : '−';
+            target.classList.toggle('tree-collapsed', expanded);
+        });
+    });
+
+    const labelForm = document.querySelector('[data-label-form]');
+    if (labelForm) {
+        const idsInput = labelForm.querySelector('input[name="ids"]');
+        const sourceCheckboxes = document.querySelectorAll('[data-component-select]');
+        const sync = () => {
+            idsInput.value = [...sourceCheckboxes].filter((node) => node.checked).map((node) => node.value).join(',');
+        };
+        sourceCheckboxes.forEach((node) => node.addEventListener('change', sync));
+        sync();
+    }
+});
+</script>
+</body>
+</html>

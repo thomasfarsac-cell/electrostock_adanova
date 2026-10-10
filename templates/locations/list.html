@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Emplacements</h1>
+        <p class="muted">{{ total }} resultat(s).</p>
+    </div>
+    {% if can_manage_stock %}
+    <div class="actions-inline">
+        <a class="btn" href="/locations/new">+ Ajouter</a>
+    </div>
+    {% endif %}
+</div>
+
+<form class="card filter-form" method="get" action="/locations">
+    <div class="grid grid-3">
+        <div class="grid-span-2">
+            <label>Recherche</label>
+            <input type="text" name="search" value="{{ search }}" placeholder="Nom, description, L:12...">
+            <p class="muted small">Filtre par nom, description, ou scan direct avec <strong>L:12</strong>.</p>
+        </div>
+        <div class="padded-top">
+            <div class="actions">
+                <button class="btn" type="submit">Filtrer</button>
+                <a class="btn btn-secondary" href="/locations">Reinitialiser</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+{% if locations %}
+<div class="location-card-grid">
+    {% for location in locations %}
+    <article class="card location-card">
+        <div class="location-card-head">
+            <div>
+                <h2><a href="/locations/{{ location.id }}">{{ location.name }}</a></h2>
+                <p class="muted small">{{ location.components|length }} article(s) • QR <code>L:{{ location.id }}</code></p>
+            </div>
+            <div class="actions-inline">
+                <a class="btn btn-secondary btn-small" href="/locations/{{ location.id }}">Ouvrir</a>
+                {% if can_manage_stock %}
+                <a class="btn btn-secondary btn-small" href="/locations/{{ location.id }}/edit">Modifier</a>
+                {% endif %}
+            </div>
+        </div>
+        {% if location.thumbnail_path %}
+        <img class="location-thumb" src="/data/{{ location.thumbnail_path }}" alt="{{ location.name }}">
+        {% endif %}
+        {% if location.description %}
+        <p class="muted text-preline">{{ location.description }}</p>
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <p class="empty">Aucun emplacement trouve.</p>
+</div>
+{% endif %}
+{% endblock %}

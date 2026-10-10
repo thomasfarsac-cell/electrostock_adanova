@@ -1,0 +1,42 @@
+services:
+  electrostock:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: electrostock
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      APP_NAME: ${APP_NAME:-ElectroStock}
+      APP_DATA_DIR: ${APP_DATA_DIR:-/app/data}
+      APP_DB_URL: ${APP_DB_URL:-sqlite:////app/data/app.db}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-change-me}
+      TZ: ${TZ:-Europe/Paris}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_COMPONENT_LOOKUP_MODEL: ${OPENAI_COMPONENT_LOOKUP_MODEL:-gpt-4o-mini}
+      OPENAI_COMPONENT_LOOKUP_USE_WEB_SEARCH: ${OPENAI_COMPONENT_LOOKUP_USE_WEB_SEARCH:-true}
+      OPENAI_COMPONENT_LOOKUP_TIMEOUT: ${OPENAI_COMPONENT_LOOKUP_TIMEOUT:-45}
+    volumes:
+      - ./data:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.electrostock.loadbalancer.server.port=8000"
+
+      - "traefik.http.routers.electrostock-https.rule=Host(`${APP_DOMAIN:-stock.adanova83.org}`)"
+      - "traefik.http.routers.electrostock-https.entrypoints=websecure"
+      - "traefik.http.routers.electrostock-https.tls=true"
+      - "traefik.http.routers.electrostock-https.tls.certresolver=myresolver"
+
+      - "traefik.http.routers.electrostock-http.rule=Host(`${APP_DOMAIN:-stock.adanova83.org}`)"
+      - "traefik.http.routers.electrostock-http.entrypoints=web"
+      - "traefik.http.routers.electrostock-http.middlewares=electrostock-redirect-https"
+
+      - "traefik.http.middlewares.electrostock-redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.electrostock-redirect-https.redirectscheme.permanent=true"
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    external: true

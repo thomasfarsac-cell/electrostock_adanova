@@ -1,0 +1,369 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Referentiels</h1>
+        <p class="muted">Marques / fabricants, formats / conditionnements et champs personnalises.</p>
+    </div>
+</div>
+
+<div class="reference-cards">
+    <section class="card reference-card" data-ref-card data-page-size="30" data-ref-total="{{ manufacturers|length }}">
+        <button class="reference-card-head" type="button" data-ref-toggle aria-expanded="false">
+            <span><strong>Marques / fabricants</strong> <span class="muted small">{{ manufacturers|length }} entree(s)</span> <span class="muted small" data-ref-head-count hidden></span></span>
+            <span class="reference-toggle-indicator">−</span>
+        </button>
+        <div class="reference-card-body reference-card-collapsed" data-ref-body>
+            {% if can_manage_stock %}
+            <form method="post" action="/references/manufacturers/new" class="stack-form">
+                <input type="text" name="name" placeholder="Nom" required>
+                {% if requires_workshop_choice %}
+                <select name="workshop_id" required>
+                    <option value="">Atelier...</option>
+                    {% for workshop in workshops %}
+                    <option value="{{ workshop.id }}">{{ workshop.name }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="hidden" name="workshop_id" value="{{ active_workshop_id }}">
+                {% endif %}
+                <input type="url" name="website_url" placeholder="Site web">
+                <textarea name="notes" rows="2" placeholder="Notes"></textarea>
+                <button class="btn" type="submit">Ajouter</button>
+            </form>
+            {% endif %}
+            <div class="reference-tools">
+                <input type="search" placeholder="Filtrer / rechercher..." data-ref-search>
+                <div class="reference-pager">
+                    <button class="btn btn-secondary btn-small" type="button" data-ref-prev>&lt;</button>
+                    <span class="small muted" data-ref-page-info></span>
+                    <button class="btn btn-secondary btn-small" type="button" data-ref-next>&gt;</button>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table class="table compact">
+                    <thead><tr><th>Nom</th>{% if active_workshop_is_all %}<th>Atelier</th>{% endif %}<th>Site</th><th></th></tr></thead>
+                    <tbody>
+                        {% for item in manufacturers %}
+                        <tr data-ref-row data-ref-search-text="{{ (item.name ~ ' ' ~ (item.website_url or '') ~ ' ' ~ (item.notes or ''))|lower }}">
+                            <td>{{ item.name }}</td>
+                            {% if active_workshop_is_all %}<td>{{ item.workshop.name if item.workshop else '—' }}</td>{% endif %}
+                            <td>{% if item.website_url %}<a href="{{ item.website_url }}" target="_blank" rel="noreferrer">ouvrir</a>{% else %}—{% endif %}</td>
+                            <td>
+                                {% if can_manage_stock %}
+                                <form method="post" action="/references/manufacturers/{{ item.id }}/delete" onsubmit="return confirm('Supprimer ?');">
+                                    <button class="btn btn-danger" type="submit">X</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="empty" data-ref-empty hidden>Aucun resultat.</p>
+        </div>
+    </section>
+
+    <section class="card reference-card" data-ref-card data-page-size="30" data-ref-total="{{ packages|length }}">
+        <button class="reference-card-head" type="button" data-ref-toggle aria-expanded="false">
+            <span><strong>Formats / conditionnements</strong> <span class="muted small">{{ packages|length }} entree(s)</span> <span class="muted small" data-ref-head-count hidden></span></span>
+            <span class="reference-toggle-indicator">+</span>
+        </button>
+        <div class="reference-card-body reference-card-collapsed" data-ref-body>
+            {% if can_manage_stock %}
+            <form method="post" action="/references/packages/new" class="stack-form">
+                <input type="text" name="name" placeholder="Nom" required>
+                {% if requires_workshop_choice %}
+                <select name="workshop_id" required>
+                    <option value="">Atelier...</option>
+                    {% for workshop in workshops %}
+                    <option value="{{ workshop.id }}">{{ workshop.name }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="hidden" name="workshop_id" value="{{ active_workshop_id }}">
+                {% endif %}
+                <textarea name="description" rows="2" placeholder="Description"></textarea>
+                <button class="btn" type="submit">Ajouter</button>
+            </form>
+            {% endif %}
+            <div class="reference-tools">
+                <input type="search" placeholder="Filtrer / rechercher..." data-ref-search>
+                <div class="reference-pager">
+                    <button class="btn btn-secondary btn-small" type="button" data-ref-prev>&lt;</button>
+                    <span class="small muted" data-ref-page-info></span>
+                    <button class="btn btn-secondary btn-small" type="button" data-ref-next>&gt;</button>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table class="table compact">
+                    <thead><tr><th>Nom</th>{% if active_workshop_is_all %}<th>Atelier</th>{% endif %}<th></th></tr></thead>
+                    <tbody>
+                        {% for item in packages %}
+                        <tr data-ref-row data-ref-search-text="{{ (item.name ~ ' ' ~ (item.description or ''))|lower }}">
+                            <td>{{ item.name }}</td>
+                            {% if active_workshop_is_all %}<td>{{ item.workshop.name if item.workshop else '—' }}</td>{% endif %}
+                            <td>
+                                {% if can_manage_stock %}
+                                <form method="post" action="/references/packages/{{ item.id }}/delete" onsubmit="return confirm('Supprimer ?');">
+                                    <button class="btn btn-danger" type="submit">X</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="empty" data-ref-empty hidden>Aucun resultat.</p>
+        </div>
+    </section>
+
+    <section class="card reference-card" data-ref-card data-page-size="30" data-ref-total="{{ custom_fields|length }}">
+        <button class="reference-card-head" type="button" data-ref-toggle aria-expanded="false">
+            <span><strong>Champs personnalises</strong> <span class="muted small">{{ custom_fields|length }} entree(s)</span> <span class="muted small" data-ref-head-count hidden></span></span>
+            <span class="reference-toggle-indicator">+</span>
+        </button>
+        <div class="reference-card-body reference-card-collapsed" data-ref-body>
+            {% if can_manage_stock %}
+            <form method="post" action="/references/custom-fields/new" class="stack-form">
+                <input type="text" name="name" placeholder="Nom" required>
+                {% if requires_workshop_choice %}
+                <select name="workshop_id" required>
+                    <option value="">Atelier...</option>
+                    {% for workshop in workshops %}
+                    <option value="{{ workshop.id }}">{{ workshop.name }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="hidden" name="workshop_id" value="{{ active_workshop_id }}">
+                {% endif %}
+                <select name="field_type">
+                    <option value="text">Texte</option>
+                    <option value="number">Nombre</option>
+                    <option value="url">URL</option>
+                </select>
+                <input type="text" name="unit" placeholder="Unite">
+                <input type="number" name="sort_order" value="0" placeholder="Ordre">
+                <button class="btn" type="submit">Ajouter</button>
+            </form>
+            {% endif %}
+            <div class="reference-tools">
+                <input type="search" placeholder="Filtrer / rechercher..." data-ref-search>
+                <div class="reference-pager">
+                    <button class="btn btn-secondary btn-small" type="button" data-ref-prev>&lt;</button>
+                    <span class="small muted" data-ref-page-info></span>
+                    <button class="btn btn-secondary btn-small" type="button" data-ref-next>&gt;</button>
+                </div>
+            </div>
+            <div class="table-scroll">
+                <table class="table compact">
+                    <thead><tr><th>Nom</th><th>Type</th><th>Unite</th><th></th></tr></thead>
+                    <tbody>
+                        {% for item in custom_fields %}
+                        <tr data-ref-row data-ref-search-text="{{ (item.name ~ ' ' ~ item.field_type ~ ' ' ~ (item.unit or ''))|lower }}">
+                            <td>{{ item.name }}</td>
+                            <td>{{ item.field_type }}</td>
+                            <td>{{ item.unit or '—' }}</td>
+                            <td>
+                                {% if can_manage_stock %}
+                                <form method="post" action="/references/custom-fields/{{ item.id }}/delete" onsubmit="return confirm('Supprimer ?');">
+                                    <button class="btn btn-danger" type="submit">X</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="empty" data-ref-empty hidden>Aucun resultat.</p>
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-ref-card]').forEach((card) => {
+        const body = card.querySelector('[data-ref-body]');
+        const toggle = card.querySelector('[data-ref-toggle]');
+        const indicator = card.querySelector('.reference-toggle-indicator');
+        const search = card.querySelector('[data-ref-search]');
+        const prev = card.querySelector('[data-ref-prev]');
+        const next = card.querySelector('[data-ref-next]');
+        const info = card.querySelector('[data-ref-page-info]');
+        const headCount = card.querySelector('[data-ref-head-count]');
+        const empty = card.querySelector('[data-ref-empty]');
+        const rows = [...card.querySelectorAll('[data-ref-row]')];
+        const pageSize = Number(card.dataset.pageSize || '30');
+        const total = Number(card.dataset.refTotal || rows.length);
+        let page = 1;
+
+        const syncCollapsed = () => {
+            const expanded = toggle.getAttribute('aria-expanded') === 'true';
+            body.classList.toggle('reference-card-collapsed', !expanded);
+            indicator.textContent = expanded ? '−' : '+';
+        };
+
+        const render = () => {
+            const term = (search.value || '').trim().toLowerCase();
+            const filtered = rows.filter((row) => (row.dataset.refSearchText || '').includes(term));
+            const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+            page = Math.min(Math.max(page, 1), totalPages);
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+
+            rows.forEach((row) => { row.hidden = true; });
+            filtered.slice(start, end).forEach((row) => { row.hidden = false; });
+
+            empty.hidden = filtered.length !== 0;
+            info.textContent = filtered.length ? `Page ${page}/${totalPages} • ${filtered.length} resultat(s)` : '0 resultat';
+            info.textContent = filtered.length ? `${Math.min(end, filtered.length)}/${filtered.length || total} • Page ${page}/${totalPages}` : '0 resultat';
+            prev.disabled = page <= 1;
+            next.disabled = page >= totalPages;
+        };
+
+        toggle.addEventListener('click', () => {
+            const expanded = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            syncCollapsed();
+        });
+        search.addEventListener('input', () => {
+            page = 1;
+            render();
+        });
+        prev.addEventListener('click', () => {
+            page -= 1;
+            render();
+        });
+        next.addEventListener('click', () => {
+            page += 1;
+            render();
+        });
+
+        syncCollapsed();
+        render();
+    });
+});
+</script>
+
+{% if false %}
+<div class="page-header">
+    <div>
+        <h1>Référentiels</h1>
+        <p class="muted">Fabricants, boîtiers, emplacements et champs personnalisés.</p>
+    </div>
+</div>
+
+<div class="two-columns">
+    <section class="card">
+        <h2>Fabricants</h2>
+        <form method="post" action="/references/manufacturers/new" class="stack-form">
+            <input type="text" name="name" placeholder="Nom" required>
+            <input type="url" name="website_url" placeholder="Site web">
+            <textarea name="notes" rows="2" placeholder="Notes"></textarea>
+            <button class="btn" type="submit">Ajouter</button>
+        </form>
+        <table class="table compact">
+            <thead><tr><th>Nom</th><th>Site</th><th></th></tr></thead>
+            <tbody>
+                {% for item in manufacturers %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{% if item.website_url %}<a href="{{ item.website_url }}" target="_blank">ouvrir</a>{% else %}—{% endif %}</td>
+                    <td>
+                        <form method="post" action="/references/manufacturers/{{ item.id }}/delete" onsubmit="return confirm('Supprimer ?');">
+                            <button class="btn btn-danger" type="submit">X</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Boîtiers</h2>
+        <form method="post" action="/references/packages/new" class="stack-form">
+            <input type="text" name="name" placeholder="Nom" required>
+            <textarea name="description" rows="2" placeholder="Description"></textarea>
+            <button class="btn" type="submit">Ajouter</button>
+        </form>
+        <table class="table compact">
+            <thead><tr><th>Nom</th><th></th></tr></thead>
+            <tbody>
+                {% for item in packages %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>
+                        <form method="post" action="/references/packages/{{ item.id }}/delete" onsubmit="return confirm('Supprimer ?');">
+                            <button class="btn btn-danger" type="submit">X</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+
+<div class="two-columns">
+    <section class="card">
+        <h2>Emplacements</h2>
+        <form method="post" action="/references/locations/new" class="stack-form">
+            <input type="text" name="name" placeholder="Nom" required>
+            <textarea name="description" rows="2" placeholder="Description"></textarea>
+            <button class="btn" type="submit">Ajouter</button>
+        </form>
+        <table class="table compact">
+            <thead><tr><th>Nom</th><th></th></tr></thead>
+            <tbody>
+                {% for item in locations %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>
+                        <form method="post" action="/references/locations/{{ item.id }}/delete" onsubmit="return confirm('Supprimer ?');">
+                            <button class="btn btn-danger" type="submit">X</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Champs personnalisés</h2>
+        <form method="post" action="/references/custom-fields/new" class="stack-form">
+            <input type="text" name="name" placeholder="Nom" required>
+            <select name="field_type">
+                <option value="text">Texte</option>
+                <option value="number">Nombre</option>
+                <option value="url">URL</option>
+            </select>
+            <input type="text" name="unit" placeholder="Unité">
+            <input type="number" name="sort_order" value="0" placeholder="Ordre">
+            <button class="btn" type="submit">Ajouter</button>
+        </form>
+        <table class="table compact">
+            <thead><tr><th>Nom</th><th>Type</th><th>Unité</th><th></th></tr></thead>
+            <tbody>
+                {% for item in custom_fields %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.field_type }}</td>
+                    <td>{{ item.unit or '—' }}</td>
+                    <td>
+                        <form method="post" action="/references/custom-fields/{{ item.id }}/delete" onsubmit="return confirm('Supprimer ?');">
+                            <button class="btn btn-danger" type="submit">X</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Ateliers</h1>
+        <p class="muted">Segmentation du stock par atelier ou domaine.</p>
+    </div>
+</div>
+
+{% if workshop_notice %}
+<div class="card {% if workshop_notice.tone == 'danger' %}error-card{% else %}success-card{% endif %}">
+    <p class="small">{{ workshop_notice.message }}</p>
+</div>
+{% endif %}
+
+<section class="card">
+    <h2>Nouvel atelier</h2>
+    <form method="post" action="/admin/workshops/new" class="grid grid-3">
+        <label>Nom<input type="text" name="name" required></label>
+        <label>Slug<input type="text" name="slug" placeholder="ex: 3d-printing"></label>
+        <label>Ordre<input type="number" name="sort_order" value="0"></label>
+        <label class="grid-span-2">Description<textarea name="description" rows="3"></textarea></label>
+        <label>Actif <input type="checkbox" name="is_active" value="true" checked></label>
+        <label class="grid-span-3">Prompt IA atelier<textarea name="ai_prompt" rows="5"></textarea></label>
+        <div class="actions grid-span-3">
+            <button class="btn" type="submit">Creer</button>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Ateliers existants</h2>
+    <div class="table-scroll">
+        <table class="table">
+            <thead>
+                <tr><th>Nom</th><th>Slug</th><th>Statut</th><th>Ordre</th><th>Parametres</th></tr>
+            </thead>
+            <tbody>
+                {% for workshop in workshops %}
+                <tr>
+                    <td><strong>{{ workshop.name }}</strong></td>
+                    <td>{{ workshop.slug }}</td>
+                    <td>{{ 'actif' if workshop.is_active else 'inactif' }}</td>
+                    <td>{{ workshop.sort_order }}</td>
+                    <td>
+                        <details>
+                            <summary class="btn btn-secondary btn-small">Modifier</summary>
+                            <form method="post" action="/admin/workshops/{{ workshop.id }}/edit" class="stack-form">
+                                <input type="text" name="name" value="{{ workshop.name }}" required>
+                                <textarea name="description" rows="3" placeholder="Description">{{ workshop.description or '' }}</textarea>
+                                <input type="number" name="sort_order" value="{{ workshop.sort_order }}">
+                                <label class="inline-checkbox"><input type="checkbox" name="is_active" value="true" {% if workshop.is_active %}checked{% endif %}> Actif</label>
+                                <textarea name="ai_prompt" rows="5" placeholder="Prompt IA atelier">{{ workshop.ai_prompt or '' }}</textarea>
+                                <button class="btn" type="submit">Sauver</button>
+                            </form>
+                        </details>
+                        <form method="post" action="/admin/workshops/{{ workshop.id }}/delete" onsubmit="return confirm('Supprimer cet atelier ?');">
+                            <button class="btn btn-danger btn-small" type="submit">Supprimer</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

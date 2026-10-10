@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Mon profil</h1>
+        <p class="muted">{{ profile_user.username }} · {{ current_user_role_label }}</p>
+    </div>
+</div>
+
+{% if profile_notice %}
+<div class="card {% if profile_notice.tone == 'danger' %}error-card{% else %}success-card{% endif %}">
+    <p class="small">{{ profile_notice.message }}</p>
+</div>
+{% endif %}
+
+<div class="two-columns profile-layout">
+    <section class="card">
+        <h2>Mon profil</h2>
+        <form method="post" action="/profile/update" class="grid grid-2">
+            <label>Pseudo
+                <input type="text" value="{{ profile_user.username }}" disabled>
+            </label>
+            <label>Role
+                <input type="text" value="{{ profile_user.role }}" disabled>
+            </label>
+            <label>Prenom
+                <input type="text" name="first_name" value="{{ profile_user.first_name or '' }}">
+            </label>
+            <label>Nom
+                <input type="text" name="last_name" value="{{ profile_user.last_name or '' }}">
+            </label>
+            <label>Nom affiche
+                <input type="text" name="display_name" value="{{ profile_user.display_name or '' }}">
+            </label>
+            <label>Email
+                <input type="email" name="email" value="{{ profile_user.email or '' }}">
+            </label>
+            <div class="grid-span-2">
+                <h2>Apparence / thème</h2>
+                <div class="theme-grid">
+                    {% for theme in themes %}
+                    <label class="theme-card theme-card-{{ theme.id }} {% if current_theme_id == theme.id %}selected{% endif %}">
+                        <input type="radio" name="theme_id" value="{{ theme.id }}" {% if current_theme_id == theme.id %}checked{% endif %}>
+                        <span>
+                            <strong>{{ theme.label }}</strong>
+                            <small>{{ theme.description }}</small>
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="actions grid-span-2">
+                <button class="btn" type="submit">Enregistrer</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Changer mon mot de passe</h2>
+        <form method="post" action="/profile/change-password" class="stack-form">
+            <label>Mot de passe actuel
+                <input type="password" name="current_password" required>
+            </label>
+            <label>Nouveau mot de passe
+                <input type="password" name="new_password" required>
+            </label>
+            <label>Confirmer le nouveau mot de passe
+                <input type="password" name="confirm_password" required>
+            </label>
+            <button class="btn" type="submit">Changer le mot de passe</button>
+        </form>
+        <p class="small muted">Le pseudo, le role et l'etat du compte restent geres par les administrateurs.</p>
+    </section>
+</div>
+{% endblock %}
